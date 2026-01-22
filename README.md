@@ -1,5 +1,7 @@
 # Word-Gen - High-Performance Wordlist Generator
 
+![Word-Gen Demo](screenshots/demo.png)
+
 **Word-Gen** is a powerful, memory-efficient wordlist generation utility designed for security professionals, penetration testers, and CTF players. It generates realistic password permutations based on base words by applying intelligent transformations.
 
 ## 🚀 Features
