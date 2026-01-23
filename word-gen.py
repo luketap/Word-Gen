@@ -24,21 +24,36 @@ import time
 from typing import Dict, Iterable, List, Tuple
 
 
-VERSION = "v1.3"
+VERSION = "v1.4"
+
+# UI Constants
+C_BLUE = "\033[94m"
+C_CYAN = "\033[96m"
+C_GREEN = "\033[92m"
+C_YELLOW = "\033[93m"
+C_MAGENTA = "\033[95m"
+C_WHITE = "\033[97m"
+C_RESET = "\033[0m"
+C_BOLD = "\033[1m"
+C_RED = "\033[91m"
+C_VIOLET = "\033[35m"
+C_DARK_GRAY = "\033[38;5;236m"
+
+SPINNERS = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
 BANNER = rf"""
- __      __                .___            ________
-/  \    /  \___________  __| _/           /  _____/  ____   ____
-\   \/\/   /  _ \_  __ \/ __ |    ______  /   \  ___ / __ \ /    \
- \        (  <_> )  | \/ /_/ |   /_____/  \    \_\  \  ___/|   |  \
-  \__/\  / \____/|__|  \____ |              \______  /\___  >___|  /
-       \/                   \/                     \/     \/     \/
+{C_CYAN} __      __                .___            ________                      
+/  \    /  \___________  __| _/           /  _____/  ____   ____   
+\   \/\/   /  _ \_  __ \/ __ |    ______  /   \  ___ / __ \ /    \  
+ \        (  <_> )  | \/ /_/ |   /_____/  \    \_\  \  ___/|   |  \ 
+  \__/\  / \____/|__|  \____ |              \______  /\___  >___|  / 
+       \/                   \/                     \/     \/     \/ {C_RESET}
 
-                        "Fully Vibecoded"
+                        {C_BOLD}{C_MAGENTA}"Fully Vibecoded"{C_RESET}
 
-  Wordlist Generator {VERSION}
+  {C_WHITE}Wordlist Generator {VERSION}{C_RESET}
 
-  Author: Wir3Tap
+  {C_YELLOW}Author: Wir3Tap{C_RESET}
 
 """
 
@@ -54,6 +69,9 @@ DEFAULT_SUBS: Dict[str, List[str]] = {
     "s": ["s", "S", "$", "5"],
     "t": ["t", "T", "7", "+"],
     "z": ["z", "Z", "2"],
+    "h": ["h", "H", "#"],
+    "k": ["k", "K", "<"],
+    "x": ["x", "X", "%"],
 }
 
 
@@ -155,14 +173,26 @@ def render_progress(done: int, total: int, start_time: float) -> None:
         return
 
     width = 30
-    pct = done / total
+    pct = min(1.0, done / total)
     filled = int(width * pct)
-    bar = "=" * filled + "-" * (width - filled)
+    
+    # Cyan blocks with a high-contrast Dark Grey gradient background
+    # This uses the 'shaded' blocks to create a depth effect while maintaining contrast
+    bar_fill = f"{C_CYAN}{'█' * filled}{C_RESET}"
+    bar_empty = f"{C_DARK_GRAY}{'▒' * (width - filled)}{C_RESET}"
+    bar = f"[{bar_fill}{bar_empty}]"
 
     elapsed = time.time() - start_time
     rate = done / elapsed if elapsed > 0 else 0
+    
+    # Spinner for animation
+    spinner = SPINNERS[int(time.time() * 8) % len(SPINNERS)]
 
-    sys.stderr.write(f"\r[{bar}] {pct:6.2%} {done:,}/{total:,} {rate:,.0f}/s")
+    # Detailed stats with colors
+    stats = f"{C_BOLD}{C_GREEN}{pct:6.2%}{C_RESET} {C_YELLOW}{done:,}{C_RESET}/{C_BOLD}{total:,}{C_RESET}"
+    speed = f"{C_YELLOW}{rate:,.0f} w/s{C_RESET}"
+
+    sys.stderr.write(f"\r {C_WHITE}{spinner}{C_RESET} {bar} {stats} | {speed}")
     sys.stderr.flush()
 
 
@@ -231,7 +261,7 @@ def main() -> int:
     text_inputs = args.text
     if not text_inputs:
         try:
-            raw = input("Enter base strings (space separated): ")
+            raw = input(f"{C_BOLD}{C_CYAN}?>{C_RESET} Enter base strings (space separated): ")
             text_inputs = raw.split()
             if not text_inputs:
                 return 1
@@ -294,7 +324,7 @@ def main() -> int:
         total = args.limit
         total_size = int(avg_size * total)
 
-    sys.stderr.write(f"Estimated size: {format_size(total_size)} ({total:,} lines)\n")
+    sys.stderr.write(f"{C_BOLD}{C_WHITE}Estimated size: {C_GREEN}{format_size(total_size)}{C_RESET} ({C_YELLOW}{total:,}{C_RESET} lines)\n")
 
     if args.count_only:
         print(total)
@@ -327,10 +357,23 @@ def main() -> int:
 
 
         render_progress(emitted, total, start)
-        sys.stderr.write("\n")
+        elapsed = time.time() - start
+        avg_rate = emitted / elapsed if elapsed > 0 else 0
+        
+        sys.stderr.write("\n\n")
+        
+        # Final Summary Block
+        sys.stderr.write(f"{C_BOLD}{C_CYAN}─── Generation Summary ──────────────────────────{C_RESET}\n")
+        sys.stderr.write(f"  {C_WHITE}Status:{C_RESET}     {C_GREEN}Completed Successfully{C_RESET}\n")
+        sys.stderr.write(f"  {C_WHITE}Total Count:{C_RESET} {C_YELLOW}{emitted:,} words{C_RESET}\n")
+        sys.stderr.write(f"  {C_WHITE}Time Taken:{C_RESET}  {C_YELLOW}{elapsed:.2f} seconds{C_RESET}\n")
+        sys.stderr.write(f"  {C_WHITE}Avg Speed:{C_RESET}   {C_YELLOW}{avg_rate:,.0f} words/sec{C_RESET}\n")
+        
+        if args.out:
+            sys.stderr.write(f"  {C_WHITE}Saved To:{C_RESET}    {C_YELLOW}{args.out}{C_RESET}\n")
+        
+        sys.stderr.write(f"{C_BOLD}{C_CYAN}─────────────────────────────────────────────────{C_RESET}\n")
 
-        if out_fh:
-            print(f"Wrote {emitted} variants to {args.out}")
         return 0
     finally:
         if out_fh:
@@ -338,4 +381,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except KeyboardInterrupt:
+        sys.stderr.write(f"\n\n{C_BOLD}{C_RED}✖ Interrupted by user. Exiting...{C_RESET}\n")
+        sys.exit(130)
